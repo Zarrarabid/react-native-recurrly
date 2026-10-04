@@ -5,9 +5,11 @@ import { HOME_BALANCE, HOME_SUBSCRIPTIONS, HOME_USER, UPCOMING_SUBSCRIPTIONS } f
 import { icons } from "@/constants/icons";
 import images from "@/constants/images";
 import "@/global.css";
+import { posthogExportLogger } from "@/lib/posthog-logger";
 import { formatCurrency } from "@/lib/utils";
 import dayjs from "dayjs";
 import { styled } from "nativewind";
+import { usePostHog } from "posthog-react-native";
 import { useState } from "react";
 import { FlatList, Image, Text, View } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
@@ -15,6 +17,7 @@ const SafeAreaView = styled(RNSafeAreaView);
 
 export default function App() {
 
+    const posthog = usePostHog();
     const [expandedSubscriptionId, setExpandedSubscriptionId] = useState<string | null>(null);
     return (
         <SafeAreaView className="flex-1 bg-background p-5">
@@ -61,7 +64,7 @@ export default function App() {
 
                             </View>
 
-                            <ListHeading title="All Subscription" />
+                            <ListHeading title="All Subscriptions" />
                         </>
                     )}
                     data={HOME_SUBSCRIPTIONS}
@@ -70,9 +73,14 @@ export default function App() {
                         <SubscriptionCard
                             {...item}
                             expanded={expandedSubscriptionId === item.id}
-                            onPress={() => setExpandedSubscriptionId((currentId) => (
-                                currentId === item.id ? null : item.id
-                            ))}
+                            onPress={() => {
+                                const isExpanded = expandedSubscriptionId !== item.id;
+                                posthog.capture('subscription_details_toggled', { is_expanded: isExpanded });
+                                posthogExportLogger.info('subscription_details_toggled', {
+                                    is_expanded: isExpanded,
+                                });
+                                setExpandedSubscriptionId(isExpanded ? item.id : null);
+                            }}
                         />
                     )}
                     extraData={expandedSubscriptionId}
